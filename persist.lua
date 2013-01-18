@@ -94,9 +94,34 @@ local simpleSerialize = function(val, context)
 	return serializers[type(val)](val, context)
 end
 
-local persist = function(val)
+local normalWhitespace = {
+	assign = " = ";
+	wsNewline = "\n";
+	wsOptional = " ";
+	wsOptNewline = "\n";
+}
+
+local minWhitespace = {
+	assign = "=";
+	wsNewline = " ";
+}
+
+
+local defaultOptions = {
+	minified = false;
+}
+
+local persist = function(val, options)
 	if type(val) ~= "table" then
 		return simpleSerialize(val)
+	end
+
+	local opt = setmetatable(options or {}, {__index = defaultOptions})
+
+	local s = normalWhitespace
+
+	if opt.minified then
+		s = minWhitespace
 	end
 
 	local context = {
@@ -109,10 +134,13 @@ local persist = function(val)
 	end
 
 	-- Set up universe table
-	append("do\n")
+	append("do")
+	append(s.wsNewline)
 	append("local ")
 	append(universeName)
-	append(" = {}\n")
+	append(s.assign)
+	append("{}")
+	append(s.wsNewline)
 
 	-- Create each registered table in universe: can't populate them
 	-- yet because the graph we're given might not be a tree, or might
@@ -120,7 +148,9 @@ local persist = function(val)
 	for tableNum = 1, #(context.tableIdConversion) do
 		local t = context.tableIdConversion[tableNum]
 		append(simpleSerialize(t, context))
-		append(" = {}\n")
+		append(s.assign)
+		append("{}")
+		append(s.wsNewline)
 	end
 
 	-- Populate each registered table in universe
@@ -135,9 +165,10 @@ local persist = function(val)
 			append(tablename)
 			append("[")
 			append(tostring(i))
-			append("] = ")
+			append("]")
+			append(s.assign)
 			append(simpleSerialize(v, context))
-			append("\n")
+			append(s.wsNewline)
 		end
 
 		-- then the hash-part
@@ -145,16 +176,19 @@ local persist = function(val)
 			append(tablename)
 			append("[")
 			append(simpleSerialize(k, context))
-			append("] = ")
+			append("]")
+			append(s.assign)
 			append(simpleSerialize(v, context))
-			append("\n")
+			append(s.wsNewline)
 		end
 	end
 
 	-- now return the top level table.
 	append("return ")
 	append(simpleSerialize(val, context))
-	append("\nend\n")
+	append(s.wsNewline)
+	append("end")
+	append(s.wsOptNewline)
 	return table.concat(stringBuild)
 end
 
