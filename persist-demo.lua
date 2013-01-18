@@ -34,3 +34,15 @@ local restored = assert(p.restore(testString))
 -- typically is equal.
 print(p.persist(restored))
 
+
+print("-------------- Now Minified:")
+-- Same thing, but minified
+do
+	local testString = p.persist(testData, {minified=true})
+	print(testString)
+	print("--------------")
+	local restored = assert(p.restore(testString))
+
+	-- Show non-minified output from round trip.
+	print(p.persist(restored))
+end
